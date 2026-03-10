@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>J Fashion AI + Stripe</title>
+<style>
+body{font-family:Arial;margin:0;padding:0;background:#f5f5f5;}
+header{display:flex;justify-content:space-between;align-items:center;padding:15px;background:black;color:white;}
+nav a{color:white;margin:0 10px;text-decoration:none;}
+.products, .recommendations{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:20px;}
+.product{background:white;padding:15px;border-radius:10px;text-align:center;}
+button{background:black;color:white;border:none;padding:10px;margin-top:5px;cursor:pointer;}
+#cart, #admin, #orders{background:#fff;padding:15px;margin:20px;border-radius:10px;}
+</style>
+</head>
+<body>
+
+<header>
+<h1>J Fashion AI + Stripe</h1>
+<nav>
+<a href="#shop">Shop</a>
+<a href="#recommend">AI Recommend</a>
+<a href="#cart">Cart</a>
+<a href="#admin">Admin</a>
+<a href="#orders">Orders</a>
+</nav>
+</header>
+
+<section id="shop">
+<h2>Products</h2>
+<div id="products" class="products"></div>
+</section>
+
+<section id="recommend">
+<h2>Recommended 🧠</h2>
+<div id="recommendations" class="recommendations"></div>
+</section>
+
+<section id="cart">
+<h2>Shopping Cart 🛒</h2>
+<ul id="cartList"></ul>
+<button onclick="checkout()">Checkout 💳</button>
+</section>
+
+<section id="admin">
+<h2>Admin Panel 🏗</h2>
+<input id="pName" placeholder="Product Name">
+<input id="pPrice" placeholder="Price">
+<input type="file" id="pImage">
+<button onclick="addProduct()">Add Product</button>
+</section>
+
+<section id="orders">
+<h2>Orders 📦</h2>
+<ul id="orderList"></ul>
+<button onclick="loadOrders()">Refresh Orders</button>
+</section>
+
+<script>
+let cart=[]
+
+async function loadProducts(){
+const res = await fetch("http://localhost:3000/products")
+const data = await res.json()
+const container=document.getElementById("products")
+container.innerHTML=""
+data.forEach(p=>{
+container.innerHTML+=`<div class="product">
+<h3>${p.name}</h3>
+<p>$${p.price}</p>
+<img src="http://localhost:3000/uploads/${p.image}" width="150">
+<button onclick="addToCart('${p._id}')">Add to Cart</button>
+</div>`
+})
+}
+
+async function loadRecommendations(){
+const res = await fetch("http://localhost:3000/recommend")
+const data = await res.json()
+const container=document.getElementById("recommendations")
+container.innerHTML=""
+data.forEach(p=>{
+container.innerHTML+=`<div class="product">
+<h3>${p.name}</h3>
+<p>$${p.price}</p>
+<img src="http://localhost:3000/uploads/${p.image}" width="150">
+</div>`
+})
+}
+
+async function addProduct(){
+const name=document.getElementById("pName").value
+const price=document.getElementById("pPrice").value
+const image=document.getElementById("pImage").files[0]
+const formData=new FormData()
+formData.append("name",name)
+formData.append("price",price)
+formData.append("image",image)
+await fetch("http://localhost:3000/products",{method:"POST",body:formData})
+alert("Product Added")
+loadProducts()
+loadRecommendations()
+}
+
+async function addToCart(id){
+const res = await fetch("http://localhost:3000/products")
+const products = await res.json()
+const prod = products.find(p=>p._id===id)
+cart.push(prod)
+updateCart()
+}
+
+function updateCart(){
+const list=document.getElementById("cartList")
+list.innerHTML=""
+cart.forEach(item=>{
+list.innerHTML+=`<li>${item.name} - $${item.price}</li>`
+})
+}
+
+async function checkout(){
+if(cart.length==0){alert("Cart empty"); return;}
+const res = await fetch("http://localhost:3000/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items:cart})})
+const data = await res.json()
+window.location.href = data.url // يحوّل المستخدم لدفع Stripe
+}
+
+async function loadOrders(){
+const res = await fetch("http://localhost:3000/orders")
+const data = await res.json()
+const list=document.getElementById("orderList")
+list.innerHTML=""
+data.forEach(o=>{
+list.innerHTML+=`<li>Order ${o._id} - $${o.total} - Items: ${o.items.map(i=>i.name).join(", ")}</li>`
+})
+}
+
+loadProducts()
+loadRecommendations()
+loadOrders()
+</script>
+
+</body>
+</html>
